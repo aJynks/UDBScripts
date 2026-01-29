@@ -51,6 +51,30 @@ for (let sector of selectedSectors) {
     }
 }
 
+// First, find all "external" linedefs BEFORE creating the bounding box
+// External linedefs are the outer edges of the selected sectors
+let externalLinedefs = [];
+
+for (let sector of selectedSectors) {
+    let sidedefs = sector.getSidedefs();
+    
+    for (let sidedef of sidedefs) {
+        let linedef = sidedef.line;
+        
+        // Check if this is an external line
+        // A line is external if one side is our selected sector and the other side is NOT a selected sector
+        let frontIsSelected = linedef.front && selectedSectors.includes(linedef.front.sector);
+        let backIsSelected = linedef.back && selectedSectors.includes(linedef.back.sector);
+        
+        // External line: one side selected, other side not selected (or doesn't exist)
+        if ((frontIsSelected && !backIsSelected) || (backIsSelected && !frontIsSelected)) {
+            if (!externalLinedefs.includes(linedef)) {
+                externalLinedefs.push(linedef);
+            }
+        }
+    }
+}
+
 // Add buffer to the bounding box
 minX -= bufferSize;
 minY -= bufferSize;
@@ -84,34 +108,13 @@ if (newSectors.length > 0) {
     }
 }
 
-// Now find and mark all "external" linedefs (outer edges of the original closets)
-// External linedefs are those that:
-// 1. Belong to the selected sectors
-// 2. Have only one side facing a selected sector (the other side is the new bounding sector or void)
-
-let externalLinedefs = [];
-
-for (let sector of selectedSectors) {
-    let sidedefs = sector.getSidedefs();
-    
-    for (let sidedef of sidedefs) {
-        let linedef = sidedef.line;
-        
-        // Check if this is an external line
-        // A line is external if one side is our selected sector and the other side is NOT a selected sector
-        let frontIsSelected = linedef.front && selectedSectors.includes(linedef.front.sector);
-        let backIsSelected = linedef.back && selectedSectors.includes(linedef.back.sector);
-        
-        // External line: one side selected, other side not selected (or doesn't exist)
-        if ((frontIsSelected && !backIsSelected) || (backIsSelected && !frontIsSelected)) {
-            if (!externalLinedefs.includes(linedef)) {
-                externalLinedefs.push(linedef);
-            }
-        }
-    }
+// Get the bounding box linedefs and set flags
+let boundingLinedefs = UDB.Map.getMarkedLinedefs();
+for (let ld of boundingLinedefs) {
+    ld.flags["128"] = true; // Not shown on automap
 }
 
-// Set flags on external linedefs
+// Set flags on external linedefs (already collected before creating bounding box)
 for (let linedef of externalLinedefs) {
     // Set impassable flag (flag 1)
     linedef.flags["1"] = true;

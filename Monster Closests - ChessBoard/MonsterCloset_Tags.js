@@ -15,6 +15,7 @@ mode
         0 = "Mode 1";
         1 = "Mode 2";
         2 = "Mode 3";
+        3 = "Mode 4";
     }
 }
 
@@ -37,6 +38,23 @@ groupStartTag
     description = "3 : Tag by Group - Starting Tag (0 = auto-assign)";
     type = 0; // Integer
     default = 0;
+}
+
+line2lineType
+{
+    description = "4 : Line2Line Teleport Type";
+    type = 11; // Enum
+    default = 244;
+    enumvalues {
+        243 = "243 - W1 Teleport to Line With Same Tag (silent, same angle)";
+        244 = "244 - WR Teleport to Line With Same Tag (silent, same angle)";
+        262 = "262 - W1 Teleport to Line With Same Tag (silent, reversed angle)";
+        263 = "263 - WR Teleport to Line With Same Tag (silent, reversed angle)";
+        264 = "264 - W1 Teleport to Line With Same Tag (monsters only, silent, reversed angle)";
+        265 = "265 - WR Teleport to Line With Same Tag (monsters only, silent, reversed angle)";
+        266 = "266 - W1 Teleport to Line With Same Tag (monsters only, silent)";
+        267 = "267 - WR Teleport to Line With Same Tag (monsters only, silent)";
+    }
 }
 
 `;
@@ -110,6 +128,7 @@ let mode = UDB.ScriptOptions.mode;
 let setTag = UDB.ScriptOptions.setTag;
 let tagRange = UDB.ScriptOptions.tagRange;
 let groupStartTag = UDB.ScriptOptions.groupStartTag;
+let line2lineType = UDB.ScriptOptions.line2lineType;
 
 // Execute based on mode
 if (mode === 0) {
@@ -242,4 +261,119 @@ if (mode === 0) {
     
     UDB.Map.clearAllSelected();
     UDB.showMessage(`Found ${groups.length} connected groups of teleport linedefs.\nTagged with tags ${groupStartTag === 0 ? 'starting from ' + (currentTag - groups.length) : 'from ' + groupStartTag} to ${currentTag - 1}`);
+    
+} else if (mode === 3) {
+    // Mode 4: Line2Line Teleport Setup
+    
+    let editLines = teleportLinedefs;
+    let lineCount = editLines.length;
+    
+    if (lineCount === 0) {
+        UDB.showMessage("Error: No teleport linedefs found in selection.");
+        UDB.die();
+    }
+    
+    // Find unused tags
+    let usedTags = new Set();
+    UDB.Map.getSectors().forEach(s => {
+        if (s.tag > 0) usedTags.add(s.tag);
+    });
+    UDB.Map.getLinedefs().forEach(ld => {
+        if (ld.tag > 0) usedTags.add(ld.tag);
+    });
+    
+    // Generate unique unused tags for each editLine
+    let availableTags = [];
+    let nextTag = 1;
+    for (let i = 0; i < lineCount; i++) {
+        while (usedTags.has(nextTag)) {
+            nextTag++;
+        }
+        availableTags.push(nextTag);
+        usedTags.add(nextTag);
+        nextTag++;
+    }
+    
+    // Shuffle the tags array for random assignment
+    for (let i = availableTags.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [availableTags[i], availableTags[j]] = [availableTags[j], availableTags[i]];
+    }
+    
+    // Assign unique tags to editLines and set their action
+    for (let i = 0; i < lineCount; i++) {
+        editLines[i].tag = availableTags[i];
+        editLines[i].action = line2lineType;
+    }
+    
+    // Create destination line at mouse cursor with segments
+    let mousePos = UDB.Map.mousePosition;
+    let startPos = UDB.Map.snappedToGrid(mousePos);
+    
+    // Create a line with (lineCount) segments, each 2 units long
+    let coords = [];
+    for (let i = 0; i <= lineCount; i++) {
+        coords.push([startPos.x + (i * 2), startPos.y]);
+    }
+    
+    UDB.Map.drawLines(coords);
+    
+    // Get the newly created linedefs
+    let createdLinedefs = [];
+    let allLinedefs = UDB.Map.getLinedefs();
+    
+    // Find linedefs at the position we just drew
+    for (let ld of allLinedefs) {
+        let ldStartX = Math.round(ld.start.position.x);
+        let ldStartY = Math.round(ld.start.position.y);
+        let ldEndX = Math.round(ld.end.position.x);
+        let ldEndY = Math.round(ld.end.position.y);
+        
+        // Check if this linedef is part of our newly created line
+        let onOurLine = false;
+        for (let i = 0; i < coords.length - 1; i++) {
+            let segStartX = Math.round(coords[i][0]);
+            let segStartY = Math.round(coords[i][1]);
+            let segEndX = Math.round(coords[i + 1][0]);
+            let segEndY = Math.round(coords[i + 1][1]);
+            
+            if ((ldStartX === segStartX && ldStartY === segStartY && ldEndX === segEndX && ldEndY === segEndY) ||
+                (ldStartX === segEndX && ldStartY === segEndY && ldEndX === segStartX && ldEndY === segStartY)) {
+                onOurLine = true;
+                break;
+            }
+        }
+        
+        if (onOurLine) {
+            createdLinedefs.push(ld);
+        }
+    }
+    
+    // Shuffle tags again for random assignment to destination lines
+    for (let i = availableTags.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [availableTags[i], availableTags[j]] = [availableTags[j], availableTags[i]];
+    }
+    
+    // Assign tags to created destination lines
+    for (let i = 0; i < Math.min(createdLinedefs.length, availableTags.length); i++) {
+        createdLinedefs[i].tag = availableTags[i];
+    }
+    
+    // Get the action description text
+    let actionDescriptions = {
+        243: "243 - W1 Teleport to Line With Same Tag (silent, same angle)",
+        244: "244 - WR Teleport to Line With Same Tag (silent, same angle)",
+        262: "262 - W1 Teleport to Line With Same Tag (silent, reversed angle)",
+        263: "263 - WR Teleport to Line With Same Tag (silent, reversed angle)",
+        264: "264 - W1 Teleport to Line With Same Tag (monsters only, silent, reversed angle)",
+        265: "265 - WR Teleport to Line With Same Tag (monsters only, silent, reversed angle)",
+        266: "266 - W1 Teleport to Line With Same Tag (monsters only, silent)",
+        267: "267 - WR Teleport to Line With Same Tag (monsters only, silent)"
+    };
+    
+    let actionText = actionDescriptions[line2lineType] || line2lineType;
+    
+    UDB.Map.clearAllSelected();
+    UDB.showMessage(`Created line2line teleport setup:\n${actionText}\n${lineCount} source lines tagged\n${createdLinedefs.length} destination line segments created at cursor`);
 }

@@ -247,6 +247,7 @@ for (let ld of allLinedefs) {
 for (let ld of closetLinedefs) {
     ld.action = 97; // WR Teleport (repeatable)
     ld.tag = teleportTag;
+    ld.flags["128"] = true; // Not shown on automap
 }
 
 // Calculate total closet dimensions
