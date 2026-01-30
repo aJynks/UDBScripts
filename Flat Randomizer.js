@@ -43,6 +43,19 @@ custom_flat_list
     default = "FLOOR0_1,FLOOR4_8,CEIL3_5";
 }
 
+selection_filter
+{
+    description = "Selection Filter (Mode 1)";
+    type = 11;
+    default = 2;
+    enumvalues
+    {
+        0 = "Floor";
+        1 = "Ceiling";
+        2 = "Both";
+    }
+}
+
 unified_random
 {
     description = "Single Random Flat";
@@ -136,10 +149,18 @@ function getFlatList(mode) {
                 UDB.die('No sectors selected!');
             }
             
+            const selectionFilter = UDB.ScriptOptions.selection_filter;
             const currentFlats = new Set();
+            
             sectors.forEach(sector => {
-                currentFlats.add(sector.floorTexture);
-                currentFlats.add(sector.ceilingTexture);
+                // Add floor textures if filter allows
+                if (selectionFilter === 0 || selectionFilter === 2) { // Floor or Both
+                    currentFlats.add(sector.floorTexture);
+                }
+                // Add ceiling textures if filter allows
+                if (selectionFilter === 1 || selectionFilter === 2) { // Ceiling or Both
+                    currentFlats.add(sector.ceilingTexture);
+                }
             });
             
             return Array.from(currentFlats);
