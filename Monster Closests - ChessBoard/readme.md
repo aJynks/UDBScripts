@@ -1,6 +1,6 @@
 # Monster Closet Scripts for Ultimate Doom Builder
 
-A pair of UDBScript tools for creating efficient, teleporter-based monster closets in MBF21 format Doom maps.
+Three UDBScript tools for creating efficient, teleporter-based monster closets in MBF21 format Doom maps.
 
 # Credits
 
@@ -20,16 +20,6 @@ These scripts automate the creation of "monster closets" - hidden sectors that s
 
 Creates an optimized checkerboard-style monster closet at your cursor position.
 
-#### Features
-- **Automatic grid optimization** - Calculates the most efficient square-like arrangement for your monster count
-- **Smart dimension handling** - Rounds to 16-unit increments, uses square sectors based on largest dimension
-- **Checkerboard pattern** - Alternates monster sectors (CEIL3_3) with raised-floor space sectors (CEIL4_1)
-- **Random monster angles** - Each monster faces a random cardinal direction (0°, 90°, 180°, 270°)
-- **Auto-sector joining** - Automatically joins all monster sectors together and all space sectors together
-- **Teleport line setup** - Configures all boundary lines with action 97 (WR Teleport)
-- **Auto-tag assignment** - Can automatically find and assign the next unused tag number
-- **Landscape orientation** - Always creates wider-than-tall layouts for efficient space usage
-
 #### Script Options
 
 | Option | Type | Default | Description |
@@ -41,14 +31,6 @@ Creates an optimized checkerboard-style monster closet at your cursor position.
 | Monster Sector Floor Height | Integer | 0 | Floor height for monster sectors |
 | Teleport Tag | Integer | 0 | Tag for teleport destination (0 = auto-assign next unused) |
 
-#### Script Default Properties
-- Floor: User-specified height (default 0)
-- Ceiling: Floor height + Thing Height + 2
-- Textures: CEIL3_3 (floor and ceiling)
-
-- Floor: Monster floor height + 32 (raised to prevent premature monster movement)
-- Ceiling: Same as monster sectors
-- Textures: CEIL4_1 (floor and ceiling)
 
 #### Usage
 
@@ -69,13 +51,6 @@ Creates an optimized checkerboard-style monster closet at your cursor position.
 
 Creates a bounding sector around selected monster closets and sets external lines of each closet to be impassable. For use as a sound activation sector.
 
-#### Features
-- **Automatic bounds detection** - Calculates bounding box from selected sectors
-- **Configurable buffer** - Adds buffer space around closets (default 64 units)
-- **Multi-closet support** - Can wrap multiple separate closets in one operation
-- **External line flagging** - Automatically sets outer lines to impassable + block monsters
-- **Property inheritance** - Copies floor/ceiling heights from selected sectors
-
 #### Script Options
 
 | Option | Type | Default | Description |
@@ -93,27 +68,58 @@ Creates a bounding sector around selected monster closets and sets external line
 
 ---
 
-## Closet is not active yet
+### 3. Monster Closet - Chess - Tags (`MonsterCloset_Tags.js`)
 
-### Set Teleport Destinations
-1. You need to create sectors, that contain a single teleport destination for each unique teleport tag you wish to use.
-2. These tags need to match the tag ids on the telport linedefs (these are set during creation by the script)
+Manages teleport tags for selected linedefs with walk-over teleport actions. Provides 4 different modes for various tagging workflows.
 
-### Set Sound Box
-3. You then need to join the bouncding box sector to your "alert sector" to propgare the sound there to wake them up.
-4. Simply select your map sector then the bounding box sector and press "j" to join them. Now any sound made by the player in that joined sector will wake up the monsters.
-5. Make sure you select you MAP sector, and then the bounding box sector, as the first selected secotr will be used to set flats, floor and cieling hight for the join3d sectors.
+#### Script Options
 
-### Set Monster Release
-6. Each "checker" that dose not contain monsters in each individual monster box is 32units high. 
-7. Give them a tag
-8. Use that tag to trigger a "align floor to lowest ajacent floor" type special. 
-9. Any type will do, as long as the end result is that raised floor is now the same hight as the floor of the sector containing the monster.
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| Mode | Enum | Mode 1 | Select which tagging mode to use |
+| 1 : Assign TAG | Integer | 0 | (Mode 1) Tag to assign (0 = auto-assign first unused) |
+| 2 : Assign TAG Range | String | "" | (Mode 2) Random tag range (e.g., "6-9" or "200-240") |
+| 3 : Tag by Group | Integer | 0 | (Mode 3) Starting tag for groups (0 = auto-assign) |
+| 4 : Line2Line Teleport Type | Enum | 244 | (Mode 4) Which line2line teleport action to use |
 
-## In game Functionality
-1. Player makes a sound in the audioBox sector.
-2. Monsters wake up.
-3. The monster box floors are lowered
-4. The monsters are released
-5. The monsters teleport.
+#### Modes
 
+**Mode 1 - Assign TAG:**
+- Sets all selected teleport linedefs to the same tag
+- If you enter 0, auto-finds the first unused tag
+- Perfect for setting a single closet to one destination
+
+**Mode 2 - Assign TAG Range:**
+- Randomly assigns tags from a specified range (e.g., "6-9")
+- Each linedef gets a random tag within that range
+- Useful for spreading monsters across multiple destinations
+
+**Mode 3 - Tag by Group:**
+- Automatically finds groups of physically connected teleport linedefs
+- Each group gets its own unique incrementing tag
+- Excellent for managing multiple monster closets - each closet automatically gets its own tag
+
+**Mode 4 - Line2Line Teleport Setup:**
+- Converts selected teleport lines to line-to-line teleports (actions 243, 244, 262-267)
+- Assigns unique tags to each source linedef
+- Creates a destination line at cursor with matching segments
+- Each destination segment gets a randomly shuffled matching tag
+- Creates complete line2line teleport systems in one step
+
+#### Usage
+
+1. Select geometry containing teleport linedefs (works with linedef, vertex, or sector selection)
+2. Choose your desired mode from the dropdown
+3. Configure the relevant options for that mode
+4. Run the script
+5. The script filters to only affect walk-over teleport actions (97, 39, 125, 126, 207, 208, 243, 244, 262-269)
+
+
+## License & Credits
+
+Chess-Closet idea taken from DragonFly's Monster Closet Tutorial:
+https://www.youtube.com/watch?v=mZTfm0sewaY (9:51 - Monster Spawning Closets)
+
+DragonFly Credits: an_Mutt for teaching him the method.
+
+MIT Lisence.
