@@ -1,2 +1,2 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0udbTestWrap.ps1" %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0UDB-DoomLauncher.ps1" %*
