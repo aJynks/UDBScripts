@@ -9,7 +9,7 @@
 direction
 {
 	description = "Facing direction";
-	default = 4;
+	default = 2;
 	type = 11;
 	enumvalues {
 		0 = "East";
