@@ -12,14 +12,14 @@ tagstart
 {
     description = "Start Tag";
     default = 1;
-    type = 15;
+    type = 0;
 }
 
 tagend
 {
     description = "End Tag";
     default = 10;
-    type = 15;
+    type = 0;
 }
 
 assignmode
