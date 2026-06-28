@@ -123,7 +123,35 @@ for (let linedef of externalLinedefs) {
     linedef.flags["2"] = true;
 }
 
+// Assign COMPSPAN to the bounding-side LOWER and UPPER of every external wall.
+// Now that the bounding box is drawn, each external line is two-sided: one side
+// is the structure sector, the other faces the new bounding sector. Texture the
+// bounding side for ALL external lines (both monster and raised cells), lower and
+// upper. Assigned unconditionally so they're there for manual edits.
+let texturedCount = 0;
+for (let linedef of externalLinedefs) {
+    let frontIsSelected = linedef.front && selectedSectors.includes(linedef.front.sector);
+    let backIsSelected = linedef.back && selectedSectors.includes(linedef.back.sector);
+    
+    let structureSide = null;
+    let boundingSide = null;
+    
+    if (frontIsSelected && !backIsSelected) {
+        structureSide = linedef.front;
+        boundingSide = linedef.back;
+    } else if (backIsSelected && !frontIsSelected) {
+        structureSide = linedef.back;
+        boundingSide = linedef.front;
+    }
+    
+    if (structureSide !== null && boundingSide !== null) {
+        boundingSide.lowerTexture = "COMPSPAN";
+        boundingSide.upperTexture = "COMPSPAN";
+        texturedCount++;
+    }
+}
+
 let width = Math.round(maxX - minX);
 let height = Math.round(maxY - minY);
 
-UDB.showMessage(`Created bounding box: ${width} x ${height}\nSet ${externalLinedefs.length} lines to impassable + block monsters`);
+UDB.showMessage(`Created bounding box: ${width} x ${height}\nSet ${externalLinedefs.length} lines to impassable + block monsters\nTextured ${texturedCount} external lines, lower + upper (COMPSPAN)`);

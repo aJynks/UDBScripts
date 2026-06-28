@@ -1,6 +1,6 @@
 `#version 4`;
 
-`#name Chevron Closet - Sound Box`;
+`#name Monster Closet - Chess - SoundBox`;
 
 `#description Creates a bounding sector around selected sectors with a 64-unit buffer. Sets external lines to impassable and block monsters.`;
 
@@ -98,8 +98,8 @@ if (newSectors.length > 0) {
     let boundingSector = newSectors[0];
     
     // Set some properties for the bounding sector
-    boundingSector.floorTexture = "FLOOR0_1";
-    boundingSector.ceilingTexture = "CEIL1_1";
+    boundingSector.floorTexture = "CEIL4_1";
+    boundingSector.ceilingTexture = "CEIL4_1";
     
     // Copy floor/ceiling heights from one of the selected sectors
     if (selectedSectors.length > 0) {
@@ -114,46 +114,6 @@ for (let ld of boundingLinedefs) {
     ld.flags["128"] = true; // Not shown on automap
 }
 
-// Find and texture door linedefs BEFORE joining (sectors get disposed after join)
-// Door linedefs: back sidedef exists, back lower texture is set and is not FIREBLU2
-for (let sector of selectedSectors) {
-    let sidedefs = sector.getSidedefs();
-    for (let sidedef of sidedefs) {
-        let linedef = sidedef.line;
-        if (linedef.back !== null) {
-            let backLower = linedef.back.lowerTexture;
-            if (backLower && backLower !== '-' && backLower !== 'FIREBLU2') {
-                linedef.back.lowerTexture = 'FIREBLU2';
-            }
-        }
-    }
-}
-
-// Find all door sectors: floorHeight === ceilingHeight within selected sectors
-let doorSectors = selectedSectors.filter(s => s.floorHeight === s.ceilingHeight);
-
-if (doorSectors.length > 1) {
-    // Collect all door tags before joining
-    let doorTags = doorSectors.map(s => s.tag).filter(t => t !== 0);
-    let lowestTag = Math.min(...doorTags);
-
-    // Join all door sectors into the first one
-    UDB.Map.joinSectors(doorSectors);
-
-    // The first sector in the array is the survivor after join
-    let joinedDoor = doorSectors[0];
-    joinedDoor.tag = lowestTag;
-
-    // Find all linedefs with special 253 whose tag matches any of the other door tags
-    let otherTags = doorTags.filter(t => t !== lowestTag);
-    UDB.Map.getLinedefs().forEach(function(ld) {
-        if (ld.action === 253 && otherTags.includes(ld.tag)) {
-            ld.action = 0;
-            ld.tag    = 0;
-        }
-    });
-}
-
 // Set flags on external linedefs (already collected before creating bounding box)
 for (let linedef of externalLinedefs) {
     // Set impassable flag (flag 1)
@@ -163,7 +123,65 @@ for (let linedef of externalLinedefs) {
     linedef.flags["2"] = true;
 }
 
+// Assign the bounding-side LOWER and UPPER texture of every external wall based on
+// what the structure sector is:
+//   door  (sector is built closed: floor height == ceiling height) -> SHAWN2
+//   floor flat FLOOR1_6                                             -> COMPBLUE
+//   floor flat FLAT14                                               -> REDWALL
+//   anything else (the monster box, etc.)                           -> COMPSPAN
+// Door is checked first so it wins regardless of the door sector's floor flat.
+// The door can't be told apart by texture (its door-face texture lives on shared
+// divider lines that face *into* the box), so detection keys on it being the only
+// sector built closed (floor == ceiling).
+// Now that the bounding box is drawn, each external line is two-sided: one side
+// is the structure sector, the other faces the new bounding sector. Assigned
+// unconditionally so they're there for manual edits.
+
+// Identify door sector(s): the door is built closed (floor == ceiling).
+let doorSectorIndices = new Set();
+for (let sector of selectedSectors) {
+    if (sector.floorHeight === sector.ceilingHeight) {
+        doorSectorIndices.add(sector.index);
+    }
+}
+
+let texturedCount = 0;
+for (let linedef of externalLinedefs) {
+    let frontIsSelected = linedef.front && selectedSectors.includes(linedef.front.sector);
+    let backIsSelected = linedef.back && selectedSectors.includes(linedef.back.sector);
+    
+    let structureSide = null;
+    let boundingSide = null;
+    
+    if (frontIsSelected && !backIsSelected) {
+        structureSide = linedef.front;
+        boundingSide = linedef.back;
+    } else if (backIsSelected && !frontIsSelected) {
+        structureSide = linedef.back;
+        boundingSide = linedef.front;
+    }
+    
+    if (structureSide !== null && boundingSide !== null) {
+        let wallTex = "COMPSPAN";
+
+        if (doorSectorIndices.has(structureSide.sector.index)) {
+            wallTex = "SHAWN2";                // door
+        } else {
+            let flat = structureSide.sector.floorTexture;
+            if (flat === "FLOOR1_6") {
+                wallTex = "COMPBLUE";
+            } else if (flat === "FLAT14") {
+                wallTex = "REDWALL";
+            }
+        }
+
+        boundingSide.lowerTexture = wallTex;
+        boundingSide.upperTexture = wallTex;
+        texturedCount++;
+    }
+}
+
 let width = Math.round(maxX - minX);
 let height = Math.round(maxY - minY);
 
-UDB.showMessage(`Created bounding box: ${width} x ${height}\nSet ${externalLinedefs.length} lines to impassable + block monsters`);
+UDB.showMessage(`Created bounding box: ${width} x ${height}\nSet ${externalLinedefs.length} lines to impassable + block monsters\nTextured ${texturedCount} external lines, lower + upper (per flat / door)`);

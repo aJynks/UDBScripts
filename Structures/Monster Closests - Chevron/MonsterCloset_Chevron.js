@@ -4,10 +4,17 @@
 
 `#scriptoptions
 
+monsterType
+{
+	description = "Thing ID";
+	default = 3002;
+	type = 18;
+}
+
 monsterWidth
 {
 	description = "Monster Width";
-	default = 62;
+	default = 60;
 	type = 0;
 }
 
@@ -18,31 +25,17 @@ monsterHeight
 	type = 0;
 }
 
-monsterType
-{
-	description = "Thing ID";
-	default = 3005;
-	type = 18;
-}
-
 monsterCount
 {
 	description = "Thing Amount";
-	default = 10;
-	type = 0;
-}
-
-floorHeight
-{
-	description = "Floor Height";
-	default = 0;
+	default = 20;
 	type = 0;
 }
 
 columns
 {
 	description = "Columns";
-	default = 1;
+	default = 4;
 	type = 0;
 }
 
@@ -53,9 +46,37 @@ topAndBottom
 	type = 3;
 }
 
+floorHeight
+{
+	description = "Floor Height";
+	default = 0;
+	type = 0;
+}
+
 extraWide
 {
 	description = "Extra Wide (additional width)";
+	default = 0;
+	type = 0;
+}
+
+teleportSpecial
+{
+	description = "Teleport Line Special";
+	default = 126;
+	type = 11;
+	enumvalues
+	{
+		97  = "97 - WR Teleport (Players + Monsters)";
+		126 = "126 - WR Teleport (Monsters Only)";
+		208 = "208 - WR Teleport (Silent, Same Angle)";
+		269 = "269 - WR Teleport (Silent, Monsters Only)";
+	}
+}
+
+scrollFloor
+{
+	description = "Scroll Floor (0 = off, else carry length)";
 	default = 0;
 	type = 0;
 }
@@ -70,6 +91,8 @@ const FLOOR_H     = UDB.ScriptOptions.floorHeight;
 const COLS        = Math.max(1, UDB.ScriptOptions.columns);
 const TOP_AND_BOT = UDB.ScriptOptions.topAndBottom;
 const EXTRA_WIDE  = Math.max(0, UDB.ScriptOptions.extraWide);
+const TELE_SPECIAL = UDB.ScriptOptions.teleportSpecial;
+const SCROLL_LEN   = Math.max(0, Math.round(UDB.ScriptOptions.scrollFloor));
 
 // ── Derived dimensions ───────────────────────────────────────────────────────
 const CELL_W   = (MON_W + 1) % 2 === 0 ? MON_W + 1 : MON_W + 2;
@@ -77,14 +100,14 @@ const rawCeil  = FLOOR_H + MON_H + 2;
 const CEIL_H   = rawCeil % 2 === 0 ? rawCeil : rawCeil + 1;
 
 const MONSTER_GAP   = 2;
-const DOOR_DEPTH    = 64;
+const DOOR_DEPTH    = Math.round(MON_W);
 const CHEVRON_COUNT = 6;
 const CHEVRON_DEPTH = 32;
 const ARROW_DEPTH   = CHEVRON_DEPTH;
 const BRIGHTNESS    = 192;
-const DOOR_TEX      = 'FIREBLU2';
+const DOOR_TEX      = 'SHAWN2';
 const TEX_ODD       = 'FLOOR1_6';
-const TEX_EVEN      = 'CEIL4_1';
+const TEX_EVEN      = 'FLAT14';
 
 const ROWS      = Math.ceil(COUNT / COLS);
 const ROOM_W    = (CELL_W * COLS) + ((COLS - 1) * MONSTER_GAP) + 32 + EXTRA_WIDE;
@@ -237,22 +260,16 @@ UDB.Map.getLinedefs().forEach(function(ld) {
     }
 });
 
-// ── Linedef special 253 ───────────────────────────────────────────────────────
+// ── Linedef special 253 (box conveyor only; doors are not scrolled) ────────────
 UDB.Map.getLinedefs().forEach(function(ld) {
     const cp = ld.getCenterPoint();
 
-    if (Math.abs(cp.x - xRight) < 1 && cp.y < yBoxBot && cp.y > yDoorBot) {
-        ld.action = 253; ld.tag = doorTag;
-    }
     if (Math.abs(cp.x - xRight) < 1 && cp.y < yBoxTop && cp.y > yBoxBot) {
         ld.action = 253; ld.tag = boxTag;
     }
-    if (TOP_AND_BOT && Math.abs(cp.x - xRight) < 1 && cp.y > yBoxTop && cp.y < yDoorTopT) {
-        ld.action = 253; ld.tag = doorTagT;
-    }
 });
 
-// ── Linedef special 126 ───────────────────────────────────────────────────────
+// ── Teleport line special (TELE_SPECIAL) ──────────────────────────────────────
 UDB.Map.getLinedefs().forEach(function(ld) {
     if (ld.back === null) return;
 
@@ -269,8 +286,8 @@ UDB.Map.getLinedefs().forEach(function(ld) {
 
     if (isChevronLine) {
         const midY = (sy + ey) / 2;
-        if (midY > yTip && midY < yDoorBot) ld.action = 126;
-        if (TOP_AND_BOT && midY < yTipT && midY > yDoorTopT) ld.action = 126;
+        if (midY > yTip && midY < yDoorBot) ld.action = TELE_SPECIAL;
+        if (TOP_AND_BOT && midY < yTipT && midY > yDoorTopT) ld.action = TELE_SPECIAL;
     }
 
     // Bottom tip outer lines
@@ -278,14 +295,14 @@ UDB.Map.getLinedefs().forEach(function(ld) {
     const endIsTip        = Math.abs(ex - cx) < 1 && Math.abs(ey - yTip) < 1;
     const startIsShoulder = (Math.abs(sx - xLeft) < 1 || Math.abs(sx - xRight) < 1) && Math.abs(sy - yShoulders) < 1;
     const endIsShoulder   = (Math.abs(ex - xLeft) < 1 || Math.abs(ex - xRight) < 1) && Math.abs(ey - yShoulders) < 1;
-    if ((startIsTip && endIsShoulder) || (endIsTip && startIsShoulder)) ld.action = 126;
+    if ((startIsTip && endIsShoulder) || (endIsTip && startIsShoulder)) ld.action = TELE_SPECIAL;
 
     if (TOP_AND_BOT) {
         const startIsTipT      = Math.abs(sx - cx) < 1 && Math.abs(sy - yTipT) < 1;
         const endIsTipT        = Math.abs(ex - cx) < 1 && Math.abs(ey - yTipT) < 1;
         const startIsShoulderT = (Math.abs(sx - xLeft) < 1 || Math.abs(sx - xRight) < 1) && Math.abs(sy - yShouldersT) < 1;
         const endIsShoulderT   = (Math.abs(ex - xLeft) < 1 || Math.abs(ex - xRight) < 1) && Math.abs(ey - yShouldersT) < 1;
-        if ((startIsTipT && endIsShoulderT) || (endIsTipT && startIsShoulderT)) ld.action = 126;
+        if ((startIsTipT && endIsShoulderT) || (endIsTipT && startIsShoulderT)) ld.action = TELE_SPECIAL;
     }
 });
 
@@ -376,5 +393,55 @@ if (TOP_AND_BOT) {
         });
     }
 }
+
+// ── Scroll floor adjustment (box conveyor) ────────────────────────────────────
+// The box is built with a full-length 253 (Scroll Floor + Carry) line and the box
+// sector tagged. SCROLL_LEN reshapes that after the fact:
+//   0           -> no conveyor: strip the 253 line and untag the box sector
+//   >= BOX_LEN  -> leave the full-length line as built
+//   otherwise   -> split the box line so the carry segment is SCROLL_LEN long
+//                  (line length controls carry speed; the whole tagged floor still
+//                   scrolls, since the special targets the sector tag, not the line)
+function getBoxRightSegments() {
+    return UDB.Map.getLinedefs().filter(function(ld) {
+        const a = ld.start.position;
+        const b = ld.end.position;
+        const vertical = Math.abs(a.x - xRight) < 1 && Math.abs(b.x - xRight) < 1;
+        const cy = (a.y + b.y) / 2;
+        return vertical && cy > yBoxBot - 0.5 && cy < yBoxTop + 0.5;
+    });
+}
+
+if (SCROLL_LEN === 0) {
+    // No conveyor: clear the box 253 line(s) and untag the box sector.
+    UDB.Map.getLinedefs().forEach(function(ld) {
+        if (ld.action === 253 && ld.tag === boxTag) {
+            ld.action = 0;
+            ld.tag    = 0;
+        }
+    });
+    UDB.Map.getSectors().forEach(function(s) {
+        if (s.intersect(boxTestPoint)) s.tag = 0;
+    });
+} else if (SCROLL_LEN < BOX_LEN) {
+    // Split the single box conveyor line so one piece is SCROLL_LEN long
+    // (measured from the door/bottom end), then keep 253 on that piece only.
+    const segs = getBoxRightSegments();
+    if (segs.length === 1) {
+        segs[0].split([xRight, yBoxBot + SCROLL_LEN]);
+    }
+    let kept = false;
+    getBoxRightSegments().forEach(function(ld) {
+        if (!kept && Math.abs(ld.length - SCROLL_LEN) < 1) {
+            ld.action = 253;
+            ld.tag    = boxTag;
+            kept = true;
+        } else {
+            ld.action = 0;
+            ld.tag    = 0;
+        }
+    });
+}
+// SCROLL_LEN >= BOX_LEN: leave the full-length conveyor line as built.
 
 UDB.exit('Chevron closet drawn. Door tag: ' + doorTag + ', Box tag: ' + boxTag + '. Monsters placed: ' + placed + '.');

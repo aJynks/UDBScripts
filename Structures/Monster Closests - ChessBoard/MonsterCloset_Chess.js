@@ -287,6 +287,17 @@ for (let monster of ourMonsters) {
     }
 }
 
+// Apply COMPSPAN to the lower of each step wall (CEIL3_3 <-> CEIL4_1 boundary).
+// Front faces the monster pit (CEIL3_3) - the only side the lower texture renders on.
+for (let ld of teleportLines) {
+    if (ld.front && ld.back) {
+        if (ld.front.sector.floorTexture === "CEIL4_1" && ld.back.sector.floorTexture === "CEIL3_3") {
+            ld.flip();
+        }
+        ld.front.lowerTexture = "COMPSPAN";
+    }
+}
+
 // Calculate total closet dimensions
 let totalWidth = cols * sectorSize;
 let totalHeight = rows * sectorSize;
